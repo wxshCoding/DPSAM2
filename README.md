@@ -1,4 +1,4 @@
-# Enhancing Segmentation Accuracy: MMSAM2 for Medical, Marine, and Camouflaged Object Detection
+# DPSAM2: Memory-Guided Dual-Path Adaptation of SAM2 for Boundary-Aware Low-Contrast Segmentation
 
 [![DOI](https://zenodo.org/badge/1131681173.svg)](https://doi.org/10.5281/zenodo.20439347)
 
