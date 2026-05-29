@@ -1,5 +1,7 @@
 # Enhancing Segmentation Accuracy: MMSAM2 for Medical, Marine, and Camouflaged Object Detection
 
+[![DOI](https://zenodo.org/badge/1131681173.svg)](https://doi.org/10.5281/zenodo.20439347)
+
 > **Note:** This code is directly related to the manuscript currently submitted to *The Visual Computer*. If you find this work useful, please verify the status of the manuscript and cite it accordingly.
 
 ## Introduction
