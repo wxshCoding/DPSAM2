@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software please cite it as below."
 title: "DPSAM2"
-version: "0.1.1"
+version: "1.0.1"
 authors:
   - family-names: "lei"
     given-names: "xsh"
