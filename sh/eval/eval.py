@@ -12,8 +12,8 @@ MSIOU = py_sod_metrics.MSIoU()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_name", type=str, default='Polyp',  help="path to the prediction results")
-parser.add_argument("--pred_path", type=str,default='./data/Polyp/valid/CVC-ColonDB/preds/',  help="path to the prediction results")
-parser.add_argument("--gt_path", type=str, default='./data/Polyp/valid/CVC-ColonDB/masks/',help="path to the ground truth masks")
+parser.add_argument("--pred_path", type=str,default='./data/Polyp/valid/CVC-300/preds/',  help="path to the prediction results")
+parser.add_argument("--gt_path", type=str, default='./data/Polyp/valid/CVC-300/masks/',help="path to the ground truth masks")
 args = parser.parse_args()
 
 sample_gray = dict(with_adaptive=True, with_dynamic=True)

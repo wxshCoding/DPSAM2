@@ -28,17 +28,6 @@ python eval.py \
 --pred_path "./data/Polyp/valid/CVC-ClinicDB/preds/" \
 --gt_path "./data/Polyp/valid/CVC-ClinicDB/masks/"
 
-CUDA_VISIBLE_DEVICES="0" \
-python test.py \
---checkpoint "7.pth" \
---test_image_path "./data/Polyp/valid/CVC-ColonDB/images/" \
---test_gt_path "./data/Polyp/valid/CVC-ColonDB/masks/" \
---save_path "./data/Polyp/valid/CVC-ColonDB/preds/"
-
-python eval.py \
---dataset_name "CVC-ColonDB" \
---pred_path "./data/Polyp/valid/CVC-ColonDB/preds/" \
---gt_path "./data/Polyp/valid/CVC-ColonDB/masks/"
 
 
 CUDA_VISIBLE_DEVICES="0" \

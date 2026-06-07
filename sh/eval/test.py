@@ -11,11 +11,6 @@ import shutil
 
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("--checkpoint", type=str, default='./best-154.pth', help="path to the checkpoint of sam2-unet")
-# parser.add_argument("--checkpoint", type=str, default='./7.pth', help="path to the checkpoint of sam2-unet")
-# parser.add_argument("--test_image_path", type=str, default='./data/Polyp/valid/CVC-ColonDB/images/', help="path to the image files for testing")
-# parser.add_argument("--test_gt_path", type=str, default='./data/Polyp/valid/CVC-ColonDB/masks/', help="path to the mask files for testing")
-# parser.add_argument("--save_path", type=str, default='./data/Polyp/valid/CVC-ColonDB/preds/', help="path to save the predicted masks")
 
 parser.add_argument("--checkpoint", type=str, default='./7.pth', help="path to the checkpoint of sam2-unet")
 parser.add_argument("--test_image_path", type=str, default='./data/Marine/valid/RMAS/images/', help="path to the image files for testing")

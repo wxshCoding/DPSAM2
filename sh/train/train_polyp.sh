@@ -7,7 +7,7 @@ CUDA_VISIBLE_DEVICES="0" \
 python train.py \
 --exp_name "Polyp" \
 --data_path "../data/Polyp" \
---valid_list CVC-300 CVC-ClinicDB CVC-ColonDB ETIS-LaribPolypDB Kvasir \
+--valid_list CVC-300 CVC-ClinicDB ETIS-LaribPolypDB Kvasir \
 --hiera_path "../data/sam2.pt" \
 --save_path "./logs" \
 --epoch 500 \

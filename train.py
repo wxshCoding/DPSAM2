@@ -25,7 +25,7 @@ import _utils as ff
 TASK_CONFIGS = {
     "Polyp": {
         "data_path":   "../data/Polyp",
-        "valid_list":  ["CVC-ColonDB", "Kvasir", "ETIS-LaribPolypDB", "CVC-300", "CVC-ClinicDB"],
+        "valid_list":  ["Kvasir", "ETIS-LaribPolypDB", "CVC-300", "CVC-ClinicDB"],
         "eval_script": "./polyp_auto.sh",
     },
     "Marine": {
@@ -123,7 +123,7 @@ else:
     # Backward-compatible defaults (Polyp) when no --task is given
     if args.exp_name    is None: args.exp_name    = "Polyp"
     if args.data_path   is None: args.data_path   = "../data/Polyp"
-    if args.valid_list  is None: args.valid_list  = ["CVC-300", "CVC-ClinicDB", "CVC-ColonDB", "ETIS-LaribPolypDB", "Kvasir"]
+    if args.valid_list  is None: args.valid_list  = ["CVC-300", "CVC-ClinicDB", "ETIS-LaribPolypDB", "Kvasir"]
     if args.eval_script is None: args.eval_script = "./polyp_auto.sh"
 
 def structure_loss(pred, mask):
