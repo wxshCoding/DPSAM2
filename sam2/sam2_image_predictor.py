@@ -13,16 +13,9 @@ import torch
 from PIL.Image import Image
 
 from sam2.modeling.sam2_base import SAM2Base
+
 from sam2.utils.transforms import SAM2Transforms
 
-'''
-sam2/sam2_image_predictor.py
-功能：SAM2图像预测器类。
-主要作用：
-1. 封装了SAM2模型，专门用于图像分割任务。
-2. 处理图像的编码（embedding calculation）。
-3. 提供基于提示（prompts）的掩码预测接口。
-'''
 
 class SAM2ImagePredictor:
     def __init__(

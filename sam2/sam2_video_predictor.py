@@ -13,14 +13,6 @@ from tqdm import tqdm
 from sam2.modeling.sam2_base import NO_OBJ_SCORE, SAM2Base
 from sam2.utils.misc import concat_points, fill_holes_in_mask_scores, load_video_frames
 
-'''
-sam2/sam2_video_predictor.py
-功能：SAM2视频预测器类。
-主要作用：
-1. 处理视频序列的分割任务，继承自SAM2Base。
-2. 管理视频帧的推理状态和记忆库。
-3. 处理用户交互（如点击、框选）在视频帧上的传播。
-'''
 
 class SAM2VideoPredictor(SAM2Base):
     """The predictor class to handle user interactions and manage inference states."""

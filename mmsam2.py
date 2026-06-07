@@ -85,7 +85,7 @@ class Adapter(nn.Module):
 # 4、bak_function.train_sam中代码逻辑封装进入memory_forward 中
 
 class DynamicMemoryBank():
-    def __init__(self, max_size=8, min_size=4, similarity_threshold=0.85, decay_factor=0.98):
+    def __init__(self, max_size=20, min_size=4, similarity_threshold=0.85, decay_factor=0.98):
         self.memories = []
         self.max_size = max_size
         self.min_size = min_size
@@ -360,7 +360,12 @@ class DynamicMemoryBank():
     
 class MMSAM2(nn.Module):
     def __init__(self, checkpoint_path=None) -> None:
-        super(MMSAM2, self).__init__()    
+        super(MMSAM2, self).__init__()
+        # SAM2 推理开启了 bfloat16 + TF32，GPU 上会有非确定性的结果，训练时也会有一定程度的非确定性（尤其是小批量），但可以通过设置随机种子和一些环境变量来尽量减少这种非确定性。
+        torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+        if torch.cuda.get_device_properties(0).major >= 8:
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True    
         model_cfg = "sam2_hiera_l.yaml"
         if checkpoint_path:
             self.model = build_sam2(model_cfg, checkpoint_path)
@@ -513,17 +518,138 @@ class MMSAM2(nn.Module):
         # 此处怎么解决
         '''prompt encoder'''         
         with torch.no_grad():
+            def _format_points(click_coords, click_labels=None):
+                click_torch = torch.as_tensor(click_coords, dtype=torch.float, device=x.device)
+                if click_torch.ndim == 1:
+                    if click_torch.shape[0] != 2:
+                        raise ValueError(f"Unsupported click coords shape: {tuple(click_torch.shape)}")
+                    # [2] -> [1, 1, 2]
+                    click_torch = click_torch.unsqueeze(0).unsqueeze(0)
+                elif click_torch.ndim == 2:
+                    if click_torch.shape[-1] != 2:
+                        raise ValueError(
+                            f"Unsupported click coords shape: {tuple(click_torch.shape)}. "
+                            "Expecting point prompts with last dim = 2."
+                        )
+                    # [B,2] -> [B,1,2], or [N,2] with B=1 -> [1,N,2]
+                    if click_torch.shape[0] == x.size(0):
+                        click_torch = click_torch.unsqueeze(1)
+                    else:
+                        click_torch = click_torch.unsqueeze(0)
+                elif click_torch.ndim == 3:
+                    if click_torch.shape[-1] != 2:
+                        raise ValueError(f"Unsupported click coords shape: {tuple(click_torch.shape)}")
+                else:
+                    raise ValueError(f"Unsupported click coords shape: {tuple(click_torch.shape)}")
+
+                if click_labels is None:
+                    click_label_torch = torch.ones(
+                        (click_torch.size(0), click_torch.size(1)),
+                        dtype=torch.int,
+                        device=x.device
+                    )
+                else:
+                    click_label_torch = torch.as_tensor(click_labels, dtype=torch.int, device=x.device)
+                    if click_label_torch.ndim == 0:
+                        click_label_torch = click_label_torch.unsqueeze(0).unsqueeze(0)
+                    elif click_label_torch.ndim == 1:
+                        if click_torch.size(0) == 1:
+                            click_label_torch = click_label_torch.unsqueeze(0)
+                        else:
+                            click_label_torch = click_label_torch.unsqueeze(1)
+                    elif click_label_torch.ndim != 2:
+                        raise ValueError(f"Unsupported click label shape: {tuple(click_label_torch.shape)}")
+
+                    # Align label shape with coords if needed.
+                    if click_label_torch.shape[0] != click_torch.shape[0]:
+                        if click_label_torch.shape[0] == 1:
+                            click_label_torch = click_label_torch.repeat(click_torch.shape[0], 1)
+                        else:
+                            raise ValueError(
+                                f"Batch mismatch between click coords {tuple(click_torch.shape)} "
+                                f"and labels {tuple(click_label_torch.shape)}"
+                            )
+                    if click_label_torch.shape[1] != click_torch.shape[1]:
+                        if click_label_torch.shape[1] == 1:
+                            click_label_torch = click_label_torch.repeat(1, click_torch.shape[1])
+                        else:
+                            raise ValueError(
+                                f"Point count mismatch between click coords {tuple(click_torch.shape)} "
+                                f"and labels {tuple(click_label_torch.shape)}"
+                            )
+                return click_torch, click_label_torch
+
+            def _format_boxes(boxes):
+                box_torch = torch.as_tensor(boxes, dtype=torch.float, device=x.device)
+                if box_torch.ndim == 1:
+                    if box_torch.shape[0] != 4:
+                        raise ValueError(f"Unsupported box shape: {tuple(box_torch.shape)}")
+                    box_torch = box_torch.unsqueeze(0)
+                elif box_torch.ndim == 2:
+                    if box_torch.shape[-1] != 4:
+                        raise ValueError(f"Unsupported box shape: {tuple(box_torch.shape)}")
+                else:
+                    raise ValueError(f"Unsupported box shape: {tuple(box_torch.shape)}")
+
+                if box_torch.shape[0] != x.size(0):
+                    if box_torch.shape[0] == 1:
+                        box_torch = box_torch.repeat(x.size(0), 1)
+                    else:
+                        raise ValueError(
+                            f"Batch mismatch between input batch {x.size(0)} and boxes {tuple(box_torch.shape)}"
+                        )
+                return box_torch
+
+            click_points = None
+            click_boxes = None
             if click is None:
                 # Prompt-free branch: generate empty points to let SAM2 use its empty embeddings
                 B = x.size(0)
                 click_torch = torch.empty(B, 0, 2, dtype=torch.float, device=x.device)
                 click_label_torch = torch.empty(B, 0, dtype=torch.int, device=x.device)
                 click_points = (click_torch, click_label_torch)
+            elif isinstance(click, dict):
+                raw_boxes = click.get("boxes", click.get("bbox", None))
+                raw_points = click.get("points", None)
+                if raw_boxes is None and raw_points is None:
+                    raise ValueError("Prompt dict must include at least one of: boxes/bbox/points")
+
+                if raw_boxes is not None:
+                    click_boxes = _format_boxes(raw_boxes)
+
+                if raw_points is not None:
+                    if isinstance(raw_points, (tuple, list)) and len(raw_points) == 2:
+                        click_coords, click_labels = raw_points
+                    else:
+                        click_coords, click_labels = raw_points, None
+                    click_points = _format_points(click_coords, click_labels)
             else:
-                click_torch = torch.as_tensor(click, dtype=torch.float, device=x.device).unsqueeze(1)
-                # 使用输入的batch大小
-                click_label_torch = torch.ones((x.size(0), 1), dtype=torch.int, device=x.device)
-                click_points = (click_torch, click_label_torch)
+                # Backward compatibility:
+                # 1) click = coords
+                # 2) click = (coords, labels)
+                if isinstance(click, (tuple, list)) and len(click) == 2:
+                    click_coords, click_labels = click
+                else:
+                    click_coords, click_labels = click, None
+                click_points = _format_points(click_coords, click_labels)
+            
+            # print("===========================")
+            # print(f"Click points shape: {click_points[0]}, Click labels shape: {click_points[1]}")
+            # print("===========================")
+
+            # Align bbox prompt path with SAM2ImagePredictor:
+            # convert each box to two corner points with labels (2, 3),
+            # then feed all sparse prompts via `points` only.
+            if click_boxes is not None:
+                box_coords = click_boxes.reshape(-1, 2, 2)
+                box_labels = torch.tensor([[2, 3]], dtype=torch.int, device=x.device)
+                box_labels = box_labels.repeat(click_boxes.size(0), 1)
+                if click_points is not None:
+                    concat_coords = torch.cat([box_coords, click_points[0]], dim=1)
+                    concat_labels = torch.cat([box_labels, click_points[1]], dim=1)
+                    click_points = (concat_coords, concat_labels)
+                else:
+                    click_points = (box_coords, box_labels)
 
             se, de = self.model.sam_prompt_encoder(  #point  prompt
                 points=click_points, #(coords_torch, labels_torch)
@@ -642,6 +768,11 @@ class MMSAM2(nn.Module):
         # 方案D 的核心：Learnable Temperature Scaling 动态对齐尺度
         # 通过学习缩放标量 T1 和 T2，把二者投影到一致的校准分布面上，再进行稳定平均
         pr = (high_res_multimasks / self.T1 + out / self.T2) / 2
+        
+        # if not self.training:
+        #     # 输出内存的容量和当前使用的记忆数量
+        #     print(f"Memory Bank Size: {len(self.memory_bank.memories)} / {self.memory_bank.max_size}")
+            
         
         # if not self.training: # 只在测试/推理阶段画图
         #     import os

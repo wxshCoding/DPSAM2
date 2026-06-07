@@ -8,15 +8,6 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-
-'''
-sam2/automatic_mask_generator.py
-功能：自动掩码生成器。
-主要作用：
-1. 在图像上自动生成网格状的点提示。
-2. 使用SAM2ImagePredictor批量预测掩码。
-3. 应用非极大值抑制（NMS）等后处理步骤，过滤重复或低质量的掩码，生成整张图的分割结果。
-'''
 import torch
 from torchvision.ops.boxes import batched_nms, box_area  # type: ignore
 

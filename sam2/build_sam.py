@@ -5,18 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import logging
+
 import torch
 from hydra import compose
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
-'''
-sam2/build_sam.py
-功能：构建SAM2模型的工厂函数。
-主要作用：
-1. build_sam2: 读取配置文件，应用覆盖项，实例化SAM2模型，并加载检查点。
-2. 负责模型的初始化和从YAML配置到PyTorch模型的转换。
-'''
 
 def build_sam2(
     config_file,
