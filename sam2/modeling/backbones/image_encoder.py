@@ -32,16 +32,19 @@ class ImageEncoder(nn.Module):
         # Forward through backbone
         # features, pos = self.neck(self.trunk(sample))
         tr = self.trunk(sample)
-        features, pos = self.neck(tr)
+        output_features, position_encodings = self.neck(tr)
         if self.scalp > 0:
             # Discard the lowest resolution features
-            features, pos = features[: -self.scalp], pos[: -self.scalp]
+            output_features = output_features[: -self.scalp]
+            position_encodings = position_encodings[: -self.scalp]
 
-        src = features[-1]
+        src = output_features[-1]
         output = {
             "vision_features": src,
-            "vision_pos_enc": pos,
-            "backbone_fpn": features,
+            "vision_pos_enc": position_encodings,
+            "backbone_fpn": output_features,
+            "mfb_output_features": list(output_features),
+            "mfb_position_encodings": list(position_encodings),
         }
         return output
 

@@ -13,6 +13,10 @@ import shutil
 import logging
 import cv2
 import py_sod_metrics
+import torch
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
 
 
 def init_metrics():
@@ -106,6 +110,48 @@ def create_logger(log_dir, phase='train'):
     logging.getLogger('').addHandler(file)
     return logger
 
+def plot_feature_map(feature_tensor, save_path, title="Feature Map"):
+    """
+    feature_tensor: (C, H, W) or (H, W)
+    Multi-channel feature embeddings are visualized by L2 activation magnitude.
+    Single-channel logits/probabilities keep their raw spatial response.
+    """
+    feature_tensor = feature_tensor.detach().float()
+    if len(feature_tensor.shape) == 3:
+        if feature_tensor.size(0) == 1:
+            activation = feature_tensor[0]
+        else:
+            activation = torch.sqrt(torch.sum(feature_tensor * feature_tensor, dim=0))
+    elif len(feature_tensor.shape) == 2:
+        activation = feature_tensor
+    else:
+        raise ValueError("Invalid shape")
+
+    activation = torch.nan_to_num(activation, nan=0.0, posinf=0.0, neginf=0.0).cpu().numpy()
+    act_min = activation.min()
+    act_max = activation.max()
+    if act_max - act_min <= 1e-8:
+        activation = np.zeros_like(activation, dtype=np.float32)
+    else:
+        activation = (activation - act_min) / (act_max - act_min)
+
+    activation = cv2.resize(activation.astype(np.float32), (352, 352), interpolation=cv2.INTER_LINEAR)
+
+    heatmap = cv2.applyColorMap(np.uint8(np.clip(255 * activation, 0, 255)), cv2.COLORMAP_JET)
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+
+    save_dir = os.path.dirname(save_path)
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+    Image.fromarray(heatmap).save(save_path)
+    print(f"Saved: {save_path}")
+
+# Note: Integrate this into test.py or evaluation script where intermediate variables:
+# x1, x2, x3, x4 (from backbone)
+# high_res_multimasks (from semantic path)
+# out1, out2, out (from UNet style detail stream)
+# memory_stack (from DMB)
+# are available.
 
 
 def test_logs():
