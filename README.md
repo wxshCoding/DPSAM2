@@ -13,7 +13,7 @@ This repository contains the implementation and reproducibility notes for **DPSA
 DPSAM2 is designed for images where object boundaries are faint, small targets are easy to miss, or the test domain differs from the pretraining distribution. It combines:
 - **Multi-Field Bottleneck Fusion (MFB)**: extracts local boundary cues and broader context with factorized convolutional branches.
 - **Dynamic Memory Bank (DMB)**: stores compact feature-level records generated from training images and retrieves selected records during prompt-free inference.
-- **Dual-Path Decoder**: combines a SAM2 semantic stream with a detail stream through temperature-scaled late fusion. This term denotes logit-scale alignment for fusion, not a claim of probabilistic calibration.
+- **Dual-Path Decoder**: combines a SAM2 semantic stream with a detail stream through late fusion. This term denotes logit-scale alignment for fusion.
 
 The GitHub repository and archived release are part of the scientific contribution. They are intended to let readers inspect the architecture, reproduce the reported training and prompt-free evaluation protocol, and understand the data and model limitations.
 
@@ -25,14 +25,14 @@ The table below maps the reproducibility materials requested for the manuscript 
 | --- | --- |
 | Model architecture code | `mmsam2.py`, `sam2/modeling/`, and `sam2/modeling/backbones/MFB.py`. |
 | Preprocessing and data loading | `dataset.py`. Training images and masks are resized to `352 x 352`; training uses random horizontal and vertical flips with probability 0.5; evaluation uses resize, tensor conversion, and ImageNet mean/std normalization without random flips. |
-| Task and dataset configuration | `train.py` contains `TASK_CONFIGS` for `Polyp`, `Marine`, `Camouflaged`, and `Salient`; SAM2 backbone configs are under `sam2/configs/`. CLI arguments can override data roots, validation lists, seeds, prompt type, and checkpoint paths. |
+| Task and dataset configuration | `train.py` contains `TASK_CONFIGS` for `Polyp`, `Marine` and `Camouflaged`; SAM2 backbone configs are under `sam2/configs/`. CLI arguments can override data roots, validation lists, seeds, prompt type, and checkpoint paths. |
 | Train/validation/test splits | The code uses a folder-based split: `data/<Task>/train/` for training images and `data/<Task>/valid/<Dataset>/` for validation or test datasets. Keep sorted per-image manifests with any archived release if a local dataset copy is changed. |
-| Random seeds | Use `--seed`. The manuscript reports four-seed results using `1024`, `2048`, `42`, and `3407`. |
+| Random seeds | Use `--seed`. The manuscript reports four-seed results using `42`,`1024`, `2048`, and `3407`. |
 | Training script | `train.py`. It trains task-group-specific checkpoints and runs internal validation at `--valid_interval`. |
 | Pretrained checkpoints | Place released checkpoints under `checkpoints/` or download them from the linked cloud folder in this README. Checkpoints are large binary files and may be hosted outside GitHub while remaining part of the archived release record. |
 | Serialized DMB states | Saved inside each training checkpoint as `memory_bank_state` with memory records, capacity, thresholds, usage counts, timestamps, and current time. |
 | Inference and prediction export | Prompt-free validation/test inference is executed by the internal evaluation path in `train.py` with `prompt_mode="none"`. Add `--save_predictions` to save logits, probabilities, and 16-bit probability previews under the run directory. |
-| Metric calculation | `train.py` computes Dice, IoU, `S_alpha`, weighted F-measure, enhanced alignment, MAE, Boundary IoU, Boundary F-score, Hausdorff distance, HD95, and normalized surface Dice. `scripts/parse_eval_log.py` and `scripts/find_best_metric_epochs.py` help parse logs and select reported epochs. |
+| Metric calculation | `train.py` computes Dice, IoU, `S_alpha`, weighted F-measure, enhanced alignment, MAE, Boundary IoU, Boundary F-score, Hausdorff distance, HD95, and normalized surface Dice.
 | Main-table reproduction tutorial | See [Reproducing the Main Tables](#reproducing-the-main-tables). |
 | Dataset cards | See [Dataset Cards](#dataset-cards). |
 | Model card | See [Model Card](#model-card). |
@@ -177,30 +177,9 @@ checkpoint.pth
 
 During validation, `train.py` reports three modes: point prompt, box prompt, and without prompt. The manuscript tables use the prompt-free results, reported in the logs as `WITHOUT PROMPT`. If `--save_predictions` is set, the evaluation code also writes prediction files below the corresponding run directory.
 
-## Reproducing the Main Tables
-
-1. Download the SAM2 Hiera-L checkpoint and save it as `sam2.pt`.
-2. Prepare each dataset in the folder layout shown above.
-3. Run each task group with the four manuscript seeds:
-
-```shell
-for seed in 1024 2048 42 3407; do
-  python train.py \
-    --task Marine \
-    --exp_name Marine_seed${seed} \
-    --data_path ./data/Marine \
-    --hiera_path ./sam2.pt \
-    --resume_checkpoint "" \
-    --epoch 300 \
-    --batch_size 5 \
-    --seed ${seed} \
-    --save_predictions
-done
-```
-
 4. Repeat the command with `--task Polyp --data_path ./data/Polyp` and `--task Camouflaged --data_path ./data/Camouflaged`.
 5. Read the `WITHOUT PROMPT` validation blocks from each run log. Average the four seed results for each dataset and report the sample standard deviation, matching the manuscript tables.
-6. Use `scripts/parse_eval_log.py` or `scripts/find_best_metric_epochs.py` to parse long logs when needed.
+<!-- 6. Use `scripts/parse_eval_log.py` or `scripts/find_best_metric_epochs.py` to parse long logs when needed. -->
 
 ## Dataset Cards
 
